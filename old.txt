@@ -1,0 +1,192 @@
+import React, { Component } from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import SignUp from "./SignUp";
+import Level1 from "./game_level1";
+
+class App extends Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      email: "email",
+      password: "password",
+      errorMessage: "",
+      cursorPosition: { row: 0, col: 0 }, // Initial cursor position
+      editMode: false, // Whether the edit mode is active
+    };
+  }
+
+  componentDidMount() {
+    document.addEventListener("keydown", this.handleKeyPress);
+  }
+
+  componentWillUnmount() {
+    document.removeEventListener("keydown", this.handleKeyPress);
+  }
+
+  handleKeyPress = (event) => {
+    const { cursorPosition, editMode } = this.state;
+    const { row, col } = cursorPosition;
+
+    switch (event.key) {
+      case "Control":
+        // Prevent default behavior for Control key to avoid interference with Emacs-like commands
+        event.preventDefault();
+        break;
+      case "f":
+        if (event.ctrlKey && col < this.getTotalLength()) {
+          event.preventDefault();
+          this.moveCursor("forward");
+        }
+        break;
+      case "b":
+        if (event.ctrlKey && col > 0) {
+          event.preventDefault();
+          this.moveCursor("backward");
+        }
+        break;
+      case "n":
+        if (event.ctrlKey && row < 1) {
+          event.preventDefault();
+          this.moveCursor("down");
+        }
+        break;
+      case "p":
+        if (event.ctrlKey && row > 0) {
+          event.preventDefault();
+          this.moveCursor("up");
+        }
+        break;
+      case "i":
+        if (event.ctrlKey) {
+          event.preventDefault();
+          this.toggleEditMode();
+        }
+        break;
+      case "s":
+        if (event.ctrlKey && editMode) {
+          event.preventDefault();
+          this.handleLogin();
+        }
+        break;
+      default:
+        break;
+    }
+  };
+
+  getTotalLength = () => {
+    const { email, password } = this.state;
+    return email.length + password.length;
+  };
+
+  moveCursor = (direction) => {
+    const { cursorPosition } = this.state;
+    let { row, col } = cursorPosition;
+
+    switch (direction) {
+      case "forward":
+        col++;
+        break;
+      case "backward":
+        col--;
+        break;
+      case "up":
+        row--;
+        break;
+      case "down":
+        row++;
+        break;
+      default:
+        break;
+    }
+
+    this.setState({ cursorPosition: { row, col } });
+  };
+
+  toggleEditMode = () => {
+    this.setState((prevState) => ({
+      editMode: !prevState.editMode,
+    }));
+  };
+
+  handleInputChange = (event) => {
+    this.setState({
+      [event.target.name]: event.target.value,
+    });
+  };
+
+  handleLogin = async () => {
+    const { email, password } = this.state;
+
+    // Check if email and password are empty
+    if (!email || !password || email === "email" || password === "password") {
+      this.setState({ errorMessage: "Please fill in valid email and password." });
+      return;
+    }
+
+    try {
+      // Send login request to API
+      const response = await fetch("http://localhost:4000/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (response.ok) {
+        console.log("Login successful");
+        // Redirect or update state to signify successful login
+      } else {
+        const data = await response.json();
+        console.log('Login failed:', data.error);
+        this.setState({ errorMessage: data.error });
+      }
+    } catch (error) {
+      console.error('Error during login:', error);
+      this.setState({ errorMessage: 'An error occurred during login.' });
+    }
+  };
+
+  render() {
+    const { email, password, errorMessage, cursorPosition, editMode } = this.state;
+    const { row, col } = cursorPosition;
+
+    return (
+      <div>
+        <div>
+          <h2>Login</h2>
+          <p>Please use Emacs-like keybindings to navigate:</p>
+          <ul>
+            <li><strong>Ctrl + f:</strong> Move cursor forward</li>
+            <li><strong>Ctrl + b:</strong> Move cursor backward</li>
+            <li><strong>Ctrl + n:</strong> Move cursor down</li>
+            <li><strong>Ctrl + p:</strong> Move cursor up</li>
+            <li><strong>Ctrl + i:</strong> Enter edit mode</li>
+            <li><strong>Ctrl + s:</strong> Save (Login)</li>
+          </ul>
+          <p>
+            Email: {email.substring(0, col)}{editMode && cursorPosition.row === 0 && cursorPosition.col === col ? "|" : ""}{email.substring(col, email.length)}
+          </p>
+          <p>
+            Password: {password.substring(0, col - email.length)}{editMode && cursorPosition.row === 1 && cursorPosition.col === col ? "|" : ""}{password.substring(col - email.length, password.length)}
+          </p>
+          {errorMessage && <p style={{ color: "red" }}>{errorMessage}</p>}
+        </div>
+      </div>
+    );
+  }
+}
+
+function Main() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<App />} />
+        <Route path="/signup" element={<SignUp />} />
+        <Route path="/Level1" element={<Level1 />} />
+      </Routes>
+    </Router>
+  );
+}
+
+export default Main;
